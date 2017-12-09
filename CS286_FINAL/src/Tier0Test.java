@@ -1,6 +1,3 @@
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-
 /*
  * Michael Symonds
  * CS286 FINAL
@@ -9,11 +6,16 @@ import java.text.NumberFormat;
  * using jackobsen's algorithm and scoring
  * based on digraph analysis using ??
  */
+
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+
+
 public class Tier0Test {
-	static boolean debug = true;
+	static boolean debug = true; // toggle to get/hide additional output/status messages
 	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
-	//Z408 plaintext (0 thru 25)
+	//Z408 plaintext (0 thru 25, correct column order)
 	int[][] z408Plain = {	{ 8, 11,  8, 10,  4, 10,  8, 11, 11,  8, 13,  6, 15,  4, 14, 15, 11}, 
 			 				{ 4,  1,  4,  2,  0, 20, 18,  4,  8, 19,  8, 18, 18, 14, 12, 20,  2}, 
 			 				{ 7,  5, 20, 13,  8, 19,  8, 18, 12, 14, 17,  4,  5, 20, 13, 19,  7}, 
@@ -39,7 +41,9 @@ public class Tier0Test {
 			 				{ 4, 18,  5, 14, 17, 12, 24,  0,  5, 19,  4, 17, 11,  8,  5,  4,  4}, 
 			 				{ 1,  4, 14, 17,  8,  4, 19,  4, 12,  4, 19,  7,  7, 15,  8, 19,  8}};
 	
+	//digraph based on brown corpus
 	double[][] englishDigraph = generateDigraph();
+	// digraph based on plain408 text
 	double[][] z408PlainDigraph = generateDigraph(z408Plain);
 	
 	
@@ -50,16 +54,19 @@ public class Tier0Test {
 		}
 		
 		double score = scoreDigraphs(englishDigraph, z408PlainDigraph);
-		System.out.println("\n\n english -> zodiacPlain - Comparative score: " + formatter.format(score));
-		// starting column permutation per data given by Stamp
+		System.out.println("\n\n english -> zodiacPlain - Comparative score: " + 
+				formatter.format(score));
+		
+		// initial column permutation per data given by Stamp
 		int[] startingOrder = {11,15,8,4,12,3,9,10,5,13,1,2,0,7,6,14,16};
-		int[][] z408Permuted = orderByColumns(z408Plain, startingOrder);//getStartingPermutation(z408Plain);
+		int[][] z408Permuted = orderByColumns(z408Plain, startingOrder);
 		if(debug)
 			printMatrix("column-Permuted z408:", z408Permuted);
 		
 		double[][] z408PermutedDigraph = generateDigraph(z408Permuted);
 		if(debug)
 			printMatrix("column-Permuted z408 Digraph:", z408PermutedDigraph);
+		
 		score = scoreDigraphs(englishDigraph, z408PermutedDigraph);
 		System.out.println("\n\n english -> zodiacPermuted - Comparative score: " + formatter.format(score));
 		
@@ -70,6 +77,16 @@ public class Tier0Test {
 		
 	}
 	
+	/*
+	 * systematically permute columns by first swapping adjacent
+	 * then every 2, then every 3, etc.. until 1 swaps with 25
+	 * If a swap generates a digraph that scores better (lower)
+	 * than current score, keep new score/column order and start
+	 * from beginning. In this version, we swap the text columns
+	 * themselves, not the digraph. A new digraph is generated
+	 * after a swap and then scored.
+	 * See 9.4.1 (p245 in the book) for details of original version.
+	 */
 	private void executeJakobsenAlgorithm(double[][] E, int[][] C){
 		printMatrix("\nStarting text: ", C);
 		int N = C[0].length;
@@ -111,9 +128,14 @@ public class Tier0Test {
 		
 		System.out.println("\nJakobsen's algorithm completed");
 		System.out.println("Winning order: ");
+		int colCount = 0;
 		for(int i = 0; i < order.length; i++){
 			System.out.print(order[i] + (i < (order.length-1) ? ", ":""));
+			if(order[i] == i)
+				colCount++;
 		}
+		System.out.println("\nAccuracy: " + colCount + "/" + 
+				order.length + " = " + ((double)colCount/(double)order.length));
 		
 		//int[][] cResult = orderByColumns(C, order);
 		printMatrix("\nText Result: ", C);
@@ -121,7 +143,12 @@ public class Tier0Test {
 		
 	}
 	
-	private double[][] permuteDigraph(double[][] D, int i, int j){
+	/*
+	 * get dT: (transpose the given matrix D)
+	 * then swap row i with row j
+	 * then return the transpose dT = D
+	 */
+	private double[][] swapColumns(double[][] D, int i, int j){
 		double[][] result = getTranspose(D);
 		double[] temp = result[i];
 		result[i] = result[j];
@@ -129,6 +156,9 @@ public class Tier0Test {
 		return getTranspose(result);
 	}
 	
+	/*
+	 * The int overload version of permute Digraph
+	 */
 	private int[][] swapColumns(int[][] C, int i, int j){
 		int[][] result = getTranspose(C);
 		int[] temp = result[i];
@@ -137,6 +167,11 @@ public class Tier0Test {
 		return getTranspose(result);
 	}
 	
+	/* 
+	 * 1-dimensional version of the swap
+	 * so we can track column position
+	 * from original order
+	 */
 	private int[] swapOrder(int[] order, int i, int j){
 		int temp = order[i];
 		order[i] = order[j];

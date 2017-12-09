@@ -1,3 +1,10 @@
+/*
+ * Michael Symonds
+ * CS286 FINAL
+ * 
+ * Utility class for reading in text
+ */
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -6,8 +13,17 @@ import java.io.IOException;
 
 
 public class TextParse {
-	public static boolean debug = false;
 	
+	// toggle to get/hide additional output status messages
+	public static boolean debug = false; 
+	
+	
+	/*
+	 * Reads in the text file from the Brown corpus
+	 * and builds a vector of the given size with 
+	 * chars from that text. If space == true, will 
+	 * also include spaces as characters as well.
+	 */
 	public static char[] getText(String file, int size, boolean space){
 		File f = new File(file);
 		String input = "";
