@@ -16,6 +16,7 @@ import smile.projection.PCA;
 
 public class Tier0Test {
 	static boolean debug = true; // toggle to get/hide additional output/status messages
+	static boolean usePCA = false; // toggle to use PCA in solving column transposition
 	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -107,8 +108,12 @@ public class Tier0Test {
 		// From SMILE library. Documentation found here:
 		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
 		PCA pca = new PCA(E);
+		pca = pca.setProjection(1);		
+		double[][] scoreMatrix = pca.project(E); // 26 x n_eig
+		
 		System.out.println("Done. Beginning column permutation analysis...");
-		double score = scoreDigraphs(E, D);
+		double score = Double.MAX_VALUE;
+		double scorePrime = 0;
 		int a = 1;
 		int b = 1;
 		
@@ -118,7 +123,17 @@ public class Tier0Test {
 			int j = a+b;
 			int[][] cPrime = swapColumns(C, i, j);
 			double[][] dPrime = generateDigraph(cPrime);
-			double scorePrime = scoreDigraphs(E, dPrime);
+			
+			if (!usePCA) {
+				scorePrime = scoreDigraphs(E, dPrime);
+			} else {
+				double[][] projectedC = pca.project(dPrime);
+				double minDist = Double.MAX_VALUE;
+				for (int row = 0; row < projectedC.length; row++) {
+					minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC[row]));
+				}
+				scorePrime = minDist;
+			}
 			
 			if(scorePrime < score){
 				score = scorePrime;
@@ -386,5 +401,14 @@ public class Tier0Test {
 		}
 	}
 	
-	
+	/*
+	 * compute euclidean distance 
+	 */
+	private double getL2Distance(double[] array1, double[] array2) {
+        double sum = 0.0;
+        for(int i = 0; i < array1.length; i++) {
+           sum += Math.pow((array1[i] - array2[i]), 2.0);
+        }
+        return Math.sqrt(sum);
+    }
 }
