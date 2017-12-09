@@ -11,6 +11,8 @@
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
+import smile.projection.PCA;
+
 
 public class Tier0Test {
 	static boolean debug = true; // toggle to get/hide additional output/status messages
@@ -98,6 +100,14 @@ public class Tier0Test {
 		for(int i = 0; i < order.length; i++){
 			order[i] = i;
 		}
+		
+		
+		System.out.println("Training PCA model on Brown Corpus Digraph...");
+		
+		// From SMILE library. Documentation found here:
+		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
+		PCA pca = new PCA(E);
+		System.out.println("Done. Beginning column permutation analysis...");
 		double score = scoreDigraphs(E, D);
 		int a = 1;
 		int b = 1;
