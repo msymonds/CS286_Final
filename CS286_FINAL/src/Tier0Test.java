@@ -19,7 +19,8 @@ import smile.projection.PCA;
 
 public class Tier0Test {
 	static boolean debug = false; // toggle to get/hide additional output/status messages
-	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
+	static boolean usePCA = true; // toggle to use PCA in solving column transposition
+  	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
 	int[][] z408Plain = {	{ 8, 11,  8, 10,  4, 10,  8, 11, 11,  8, 13,  6, 15,  4, 14, 15, 11}, 
@@ -121,13 +122,15 @@ public class Tier0Test {
 		}
 		
 		
-//		System.out.println("Training PCA model on Brown Corpus Digraph...");
-//		
-//		// From SMILE library. Documentation found here:
-//		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
-//		PCA pca = new PCA(E);
-//		System.out.println("Done. Beginning column permutation analysis...");
-//		
+		System.out.println("Training PCA model on Brown Corpus Digraph...");
+		
+		// From SMILE library. Documentation found here:
+		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
+		PCA pca = new PCA(E);
+		pca = pca.setProjection(1);		
+		double[][] scoreMatrix = pca.project(E); // 26 x n_eig
+		System.out.println("Done. Beginning column permutation analysis...");
+		
 		
 		// track all starting and ending permutations from
 		// each epoch(random restart) to make sure we don't
@@ -137,11 +140,12 @@ public class Tier0Test {
 		finalOrders.add(order);
 		
 		
-		double score = scoreDigraphs(E, D);
+		double score = Double.MAX_VALUE;
+		double scorePrime = 0;
 		double bestScore = score;
 		
 		printMatrix("\nStarting text: ", C, true);
-		TextParse.appendToFile("Starting score: " + score);
+		//TextParse.appendToFile("Starting score: " + score);
 		TextParse.appendToFile("Starting order: ");
 		String text = "";
 		for(int i = 0; i < order.length; i++){
@@ -204,14 +208,17 @@ public class Tier0Test {
 				testOrder = swapOrder(testOrder, i, j);
 				
 				double[][] dPrime = generateDigraph(cPrime);
-				double scorePrime = scoreDigraphs(E, dPrime);
-//				if(scorePrime < 26){
-//					System.out.print("Examining column order: ");
-//					for(int k = 0; k < testOrder.length; k++){
-//						System.out.print(testOrder[k] + (k < testOrder.length-1 ? ", ":"\n"));
-//					}
-//					System.out.println("Test score: " + scorePrime);
-//				}
+
+				if (!usePCA) {
+					scorePrime = scoreDigraphs(E, dPrime);
+				} else {
+					 double[][] projectedC = pca.project(dPrime);
+					 double minDist = Double.MAX_VALUE;
+					 for (int row = 0; row < projectedC.length; row++) {
+					 	minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC[row]));
+					 }
+					 scorePrime = minDist;
+				}
 				
 				
 				if(scorePrime < score){
@@ -602,5 +609,15 @@ public class Tier0Test {
 		}
 	}
 	
+	/*
+ 	 * compute euclidean distance 
+ 	 */
+ 	private double getL2Distance(double[] array1, double[] array2) {
+         double sum = 0.0;
+         for(int i = 0; i < array1.length; i++) {
+            sum += Math.pow((array1[i] - array2[i]), 2.0);
+         }
+         return Math.sqrt(sum);
+    }
 	
 }
