@@ -4,7 +4,8 @@
  * 
  * Z408 plaintext column permutation test
  * using jackobsen's algorithm and scoring
- * based on digraph analysis using ??
+ * based on digraph analysis using simple
+ * distance formula
  */
 
 import java.text.DecimalFormat;
@@ -157,7 +158,7 @@ public class Tier0Test {
 	}
 	
 	/*
-	 * The int overload version of permute Digraph
+	 * The int overload version of the method above
 	 */
 	private int[][] swapColumns(int[][] C, int i, int j){
 		int[][] result = getTranspose(C);
@@ -187,12 +188,19 @@ public class Tier0Test {
 	private double[][] generateDigraph(){
 		double[][] result = null;
 		int dGraphSize = 26;
-		// generate digraph
+		
+		// read in text from file 
+		// map each char to int values
+		// (a = 0, b = 1, etc...)
+		//
 		char[] digraphInput = TextParse.getText("DigraphText.txt", 1000000, false);
 		for(int i = 0; i < digraphInput.length; i++){
 			digraphInput[i] = (char) (digraphInput[i] - 97);
 		}
 				
+		// iterate through char array and
+		// generate counts for letter pairings
+		//
 		result = new double[dGraphSize][];
 		for(int i = 0; i < result.length; i++){
 			result[i] = new double[dGraphSize];
@@ -204,12 +212,23 @@ public class Tier0Test {
 					
 		}
 		
+		
+		// digraph calculation:
+		// normalize each count to reflect
+		// statistical probability of one
+		// letter following another
+		//
 		for(int i = 0; i < result.length; i++){
 			double rowSum = 0;
+			// add 5 to each index (to eliminate zeros)
+			// and sum the row
 			for(int j = 0; j < result[i].length; j++){
 				result[i][j] += 5;
 				rowSum += result[i][j];
 			}
+			
+			// normalize each index by its rowSum
+			// (makes each row stochastic)
 			for(int j = 0; j < result[i].length; j++){
 				result[i][j] = result[i][j]/rowSum;
 			}
