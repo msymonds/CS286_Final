@@ -10,12 +10,15 @@
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Random;
 
 import smile.projection.PCA;
 
 
 public class Tier0Test {
-	static boolean debug = true; // toggle to get/hide additional output/status messages
+	static boolean debug = false; // toggle to get/hide additional output/status messages
 	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -51,9 +54,12 @@ public class Tier0Test {
 	
 	
 	public void runTest(){
+		// initialize results file for printing results
+		TextParse.initializeResultsFile();
+		
 		if(debug){
-			printMatrix("English Language Digraph:", englishDigraph);
-			printMatrix("\n\nZodiac Plain Text Digraph:", z408PlainDigraph);
+			printMatrix("English Language Digraph:", englishDigraph, true);
+			printMatrix("\n\nZodiac Plain Text Digraph:", z408PlainDigraph, true);
 		}
 		
 		double score = scoreDigraphs(englishDigraph, z408PlainDigraph);
@@ -64,17 +70,19 @@ public class Tier0Test {
 		int[] startingOrder = {11,15,8,4,12,3,9,10,5,13,1,2,0,7,6,14,16};
 		int[][] z408Permuted = orderByColumns(z408Plain, startingOrder);
 		if(debug)
-			printMatrix("column-Permuted z408:", z408Permuted);
+			printMatrix("column-Permuted z408:", z408Permuted, true);
 		
 		double[][] z408PermutedDigraph = generateDigraph(z408Permuted);
 		if(debug)
-			printMatrix("column-Permuted z408 Digraph:", z408PermutedDigraph);
+			printMatrix("column-Permuted z408 Digraph:", z408PermutedDigraph, true);
 		
 		score = scoreDigraphs(englishDigraph, z408PermutedDigraph);
 		System.out.println("\n\n english -> zodiacPermuted - Comparative score: " + formatter.format(score));
 		
 		score = scoreDigraphs(z408PlainDigraph, z408PermutedDigraph);
 		System.out.println("\n\n zodiacPlain -> zodiacPermuted - Comparative score: " + formatter.format(score));
+		
+		printMatrix("Original z408 plain-Text", z408Plain, true);
 		
 		executeJakobsenAlgorithm(englishDigraph, z408Permuted);
 		
@@ -91,67 +99,265 @@ public class Tier0Test {
 	 * See 9.4.1 (p245 in the book) for details of original version.
 	 */
 	private void executeJakobsenAlgorithm(double[][] E, int[][] C){
-		printMatrix("\nStarting text: ", C);
+		int RANDOM_RESTARTS = 100;
+		
+		// preserve the original order of C for
+		// random restarts and final ordering
+		int[][] startingC = duplicateMatrix(C);
+		
 		int N = C[0].length;
-		// no K needed, ciphertext is already decoded to plaintext
+		
 		double[][] D = generateDigraph(C);
+		
 		// initial column order for cipher text
-		int[] order = new int[D[0].length];
+		// plus working and final copies
+		int[] order = new int[C[0].length];
+		int[] bestOrder = new int[order.length];
+		int[] testOrder = new int[order.length];
 		for(int i = 0; i < order.length; i++){
 			order[i] = i;
+			bestOrder[i] = i;
+			testOrder[i] = i;
 		}
 		
 		
-		System.out.println("Training PCA model on Brown Corpus Digraph...");
+//		System.out.println("Training PCA model on Brown Corpus Digraph...");
+//		
+//		// From SMILE library. Documentation found here:
+//		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
+//		PCA pca = new PCA(E);
+//		System.out.println("Done. Beginning column permutation analysis...");
+//		
 		
-		// From SMILE library. Documentation found here:
-		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
-		PCA pca = new PCA(E);
-		System.out.println("Done. Beginning column permutation analysis...");
+		// track all starting and ending permutations from
+		// each epoch(random restart) to make sure we don't
+		// create a random starting order that matches one
+		// we've already used
+		ArrayList<int[]> finalOrders = new ArrayList<int[]>();
+		finalOrders.add(order);
+		
+		
 		double score = scoreDigraphs(E, D);
-		int a = 1;
-		int b = 1;
+		double bestScore = score;
 		
-		while (b < N-1){
-			//System.out.println("a: " + a + ", b: " + b);
-			int i = a;
-			int j = a+b;
-			int[][] cPrime = swapColumns(C, i, j);
-			double[][] dPrime = generateDigraph(cPrime);
-			double scorePrime = scoreDigraphs(E, dPrime);
+		printMatrix("\nStarting text: ", C, true);
+		TextParse.appendToFile("Starting score: " + score);
+		TextParse.appendToFile("Starting order: ");
+		String text = "";
+		for(int i = 0; i < order.length; i++){
+			text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+		}
+		TextParse.appendToFile(text);
+		
+		for(int epoch = 0; epoch < RANDOM_RESTARTS; epoch++){
 			
-			if(scorePrime < score){
-				score = scorePrime;
-				D = dPrime;
-				C = cPrime;
-				order = swapOrder(order, i, j);
-				a = b = 1;
-			} else {
-				a++;
-				//System.out.println(a);
-				if(a+b >= N){
-					a = 1;
-					b++;
+			// if after the first run, we need to
+			// generate a new random column order
+			// being careful not to generate an order
+			// which matches one we know we are already
+			// at the "top" of the hill for
+			// 
+			if(epoch > 0){
+				TextParse.appendToFile("generating random order...");
+//				do{
+//					order = getPermutation(startingC[0].length);
+//				} while (!orderNotTried(order, finalOrders));
+//				
+				order = getPermutation(startingC[0].length);
+				TextParse.appendToFile("done!\n");
+				finalOrders.add(order);
+				C = orderByColumns(startingC, order);
+				for(int i = 0; i < order.length; i++){
+					testOrder[i] = order[i];
+				}
+				
+				// score the intial random order
+				D = generateDigraph(C);
+				score = scoreDigraphs(E, D);
+				
+				//printMatrix("\nStarting epoch text: ", C, true);
+				TextParse.appendToFile("Starting epoch score: " + score);
+				TextParse.appendToFile("Starting epoch order: ");
+				text = "";
+				for(int i = 0; i < order.length; i++){
+					text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+				}
+				TextParse.appendToFile(text);
+				
+			} // end epoch setup
+			
+			int a = 1;
+			int b = 1;
+			while (b < N-1){
+				//System.out.println("a: " + a + ", b: " + b);
+				
+				// reset testOrder to match order
+				for(int i = 0; i < order.length; i++){
+					testOrder[i] = order[i];
+				}
+				int i = a-1;
+				int j = a+b;
+//				System.out.print("i: " + i + ", j: " + j + "  ");
+//				if(iteration % 20 == 0)
+//					System.out.println("");
+				int[][] cPrime = swapColumns(C, i, j);
+				testOrder = swapOrder(testOrder, i, j);
+				
+				double[][] dPrime = generateDigraph(cPrime);
+				double scorePrime = scoreDigraphs(E, dPrime);
+//				if(scorePrime < 26){
+//					System.out.print("Examining column order: ");
+//					for(int k = 0; k < testOrder.length; k++){
+//						System.out.print(testOrder[k] + (k < testOrder.length-1 ? ", ":"\n"));
+//					}
+//					System.out.println("Test score: " + scorePrime);
+//				}
+				
+				
+				if(scorePrime < score){
+					score = scorePrime;
+					D = dPrime;
+					C = cPrime;
+					order = swapOrder(order, i, j);
+					a = b = 1;
+					//System.out.println("\n");
+				} else {
+					a++;
 					//System.out.println(a);
+					if(a+b >= N){
+						a = 1;
+						b++;
+						//System.out.println(a);
+					}
+				}
+				
+			}
+			System.out.println("Epoch " + (epoch + 1) + " complete.");
+			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
+			TextParse.appendToFile("Winning score: " + score);
+			TextParse.appendToFile("Winning order: ");
+			text = "";
+			for(int i = 0; i < order.length; i++){
+				text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+			}
+			TextParse.appendToFile(text);
+			int[][] winText = orderByColumns(startingC, order);
+			double acurracy = getPermutationAccuracy(winText);
+			
+			finalOrders.add(order);
+			
+			if(bestScore > score){
+				bestScore = score;
+				for(int i = 0; i < order.length; i++){
+					bestOrder[i] = order[i];
 				}
 			}
 		}
 		
+		
 		System.out.println("\nJakobsen's algorithm completed");
-		System.out.println("Winning order: ");
-		int colCount = 0;
-		for(int i = 0; i < order.length; i++){
-			System.out.print(order[i] + (i < (order.length-1) ? ", ":""));
-			if(order[i] == i)
-				colCount++;
+		TextParse.appendToFile("\nJakobsen's algorithm completed");
+		TextParse.appendToFile("Winning score: " + bestScore);
+		TextParse.appendToFile("Winning order: ");
+		text = "";
+		for(int i = 0; i < bestOrder.length; i++){
+			text += (bestOrder[i] + (i < (bestOrder.length-1) ? ", ":"\n"));
 		}
-		System.out.println("\nAccuracy: " + colCount + "/" + 
-				order.length + " = " + ((double)colCount/(double)order.length));
+		TextParse.appendToFile(text);
 		
-		//int[][] cResult = orderByColumns(C, order);
-		printMatrix("\nText Result: ", C);
+		int[][] finalText = orderByColumns(startingC, bestOrder);
+		double accuracy = getPermutationAccuracy(finalText);
+		printMatrix("\nText Result: ", finalText, true);
 		
 		
+	}
+	
+	/*
+	 * returns the avg number of columns
+	 * of the given text permutation are
+	 * in the correct column position compared
+	 * to the solved z408 text
+	 */
+	private double getPermutationAccuracy(int[][] m){
+		double result = 0.0;
+		int[][] mT = getTranspose(m);
+		int[][] solution = getTranspose(z408Plain);
+		int correct = 0;
+		
+		for(int i = 0; i < mT.length; i++){
+			boolean same = true;
+			for(int j = 0; j < mT[i].length/2; j++){
+				if(mT[i][j] != solution[i][j])
+					same = false;
+			}
+			if(same)
+				correct++;
+		}
+		result = (double)(correct)/(double)solution.length;
+		TextParse.appendToFile("Permutation accuracy: " + correct + "/" + solution.length + " = " +
+				formatter.format(result));
+		return result;
+	}
+	
+	/*
+	 * returns true if the given int[]
+	 * is not among those we have collected
+	 * and false otherwise
+	 */
+	private boolean orderNotTried(int[] order, ArrayList<int[]> finalOrders){
+		Iterator<int[]> iter = finalOrders.iterator();
+		int counter = 1;
+		while(iter.hasNext()){
+			int[] next = iter.next();
+			boolean same = true;
+			for(int i =0; i<next.length; i++){
+				if(order[i] != next[i]){
+					same = false;
+					break;
+				}
+				
+			}
+			if(same){
+				TextParse.appendToFile("(failed at iteration " + counter + ")...\n");
+				return false;
+			}
+			counter++;
+		}
+		return true;
+	}
+	
+	/*
+	 * generates a random int array from
+	 * 0 to the given n - 1
+	 */
+	private int[] getPermutation(int n){
+		Random rand = new Random(System.currentTimeMillis());
+		int[] result = new int[n];
+		boolean[] taken = new boolean[n];
+		int count = 0;
+		do{
+			int choice = (int)(rand.nextDouble() * n);
+			while(taken[choice])
+				choice = ((choice + 1) % n);
+			result[count] = choice;
+			taken[choice] = true;
+			count++;
+		} while(count < result.length);
+		return result;
+	}
+	
+	/*
+	 * makes a deep copy of the given matrix
+	 */
+	private int[][] duplicateMatrix(int[][] C){
+		int[][] result = new int[C.length][];
+		for(int i =0; i < result.length; i++){
+			result[i] = new int[C[i].length];
+			for(int j = 0; j < result[i].length; j++){
+				result[i][j] = C[i][j];
+			}
+		}
+		return result;
 	}
 	
 	/*
@@ -362,13 +568,18 @@ public class Tier0Test {
 	 * prints the given double matrix with
 	 * the given header s
 	 */
-	private void printMatrix(String s, double[][] m){
+	private void printMatrix(String s, double[][] m, boolean toFile){
 		System.out.println(s);
+		if(toFile)
+			TextParse.appendToFile(s);
 		for(int i = 0; i < m.length; i++){
+			String line = "";
 			for(int j = 0; j < m[i].length; j++){
-				System.out.print(formatter.format(m[i][j]) + (j == (m[i].length-1) ? "":", "));
+				line += (formatter.format(m[i][j]) + (j == (m[i].length-1) ? "":", "));
 			}
-			System.out.println("");
+			//System.out.println(line);
+			if(toFile)
+				TextParse.appendToFile(line);
 		}
 	}
 	
@@ -376,13 +587,18 @@ public class Tier0Test {
 	 * prints the given int matrix with the
 	 * given header s
 	 */
-	private void printMatrix(String s, int[][] m){
-		System.out.println(s);
+	private void printMatrix(String s, int[][] m, boolean toFile){
+		//System.out.println(s);
+		if(toFile)
+			TextParse.appendToFile(s);
 		for(int i = 0; i < m.length; i++){
+			String line = "";
 			for(int j = 0; j < m[i].length; j++){
-				System.out.print(m[i][j] + (j == (m[i].length-1) ? "":", "));
+				line += (m[i][j] + (j == (m[i].length-1) ? "":", "));
 			}
-			System.out.println("");
+			//System.out.println(line);
+			if(toFile)
+				TextParse.appendToFile(line);
 		}
 	}
 	

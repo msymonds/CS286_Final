@@ -63,4 +63,37 @@ public class TextParse {
 		return result;
 	}
 	
+	/*
+	 * creates a new file called results.txt
+	 * if file already exists, it will 
+	 * overwrite all content with a blank
+	 * to reset the file for new results
+	 */
+	public static void initializeResultsFile(){
+		File f = new File("results.txt");
+		try {
+			FileWriter writer = new FileWriter(f, false);
+			writer.write("");
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	/*
+	 * appends the given string to the results file
+	 */
+	public static void appendToFile(String s){
+		File f = new File("results.txt");
+		try {
+			FileWriter writer = new FileWriter(f, true);
+			writer.write(s + System.getProperty( "line.separator" ));
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 }
