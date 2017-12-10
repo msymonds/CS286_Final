@@ -11,7 +11,10 @@
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 
 import smile.projection.PCA;
@@ -20,6 +23,7 @@ import smile.projection.PCA;
 public class Tier0Test {
 	static boolean debug = false; // toggle to get/hide additional output/status messages
 	static boolean usePCA = true; // toggle to use PCA in solving column transposition
+	static boolean usePCAWithRanking = false;
   	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -126,9 +130,17 @@ public class Tier0Test {
 		
 		// From SMILE library. Documentation found here:
 		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
+		
+		int nEigvalues = 1;
 		PCA pca = new PCA(E);
-		pca = pca.setProjection(1);		
+		pca = pca.setProjection(nEigvalues);		
 		double[][] scoreMatrix = pca.project(E); // 26 x n_eig
+		if (usePCAWithRanking) { // overwrite PCA object for simplicity
+			double[][] sortedE = sortForRowDescending(E);	
+			pca = new PCA(sortedE);
+			pca = pca.setProjection(nEigvalues);
+			scoreMatrix = pca.project(sortedE); // 26 x n_eig
+		}
 		System.out.println("Done. Beginning column permutation analysis...");
 		
 		
@@ -153,8 +165,8 @@ public class Tier0Test {
 		}
 		TextParse.appendToFile(text);
 		
+		double maxAccuracy = 0.0;
 		for(int epoch = 0; epoch < RANDOM_RESTARTS; epoch++){
-			
 			// if after the first run, we need to
 			// generate a new random column order
 			// being careful not to generate an order
@@ -211,14 +223,36 @@ public class Tier0Test {
 
 				if (!usePCA) {
 					scorePrime = scoreDigraphs(E, dPrime);
-				} else {
-					 double[][] projectedC = pca.project(dPrime);
-					 double minDist = Double.MAX_VALUE;
-					 for (int row = 0; row < projectedC.length; row++) {
-					 	minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC[row]));
-					 }
-					 scorePrime = minDist;
-				}
+                } else {
+                		double[][] projectedC = null;
+                		if (usePCAWithRanking) {
+                			List<Double[]> selectedRow = new ArrayList<>();
+                    		for (int row = 0; row < dPrime.length; row++) {
+                    			// remove the case with uniform distribution
+                    			if (Math.abs((dPrime[row][0] - 0.0385)) < 10e-4) {
+                    				Double[] r = new Double[dPrime[0].length];
+	    							for (int col = 0; col < dPrime[0].length; col++)
+	    								r[col] = dPrime[row][col];
+	    							selectedRow.add(r);
+	    						}
+                    		}
+                    		double[][] selectedDPrime = new double[selectedRow.size()][dPrime[0].length];
+                    		for (int row = 0; row < selectedRow.size(); row++) {
+                    			for (int col = 0; col < dPrime[0].length; col++)
+                    				selectedDPrime[row][col] = selectedRow.get(row)[col];
+                    		}
+                    		double[][] sortedDPrime = sortForRowDescending(selectedDPrime);
+                    		projectedC = pca.project(sortedDPrime);
+                		} else {
+                			projectedC = pca.project(dPrime);
+                		}
+                		
+					double minDist = Double.MAX_VALUE;
+					for (int row = 0; row < projectedC.length; row++) {
+						minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC[row]));
+					}
+					scorePrime = minDist;
+                }
 				
 				
 				if(scorePrime < score){
@@ -251,6 +285,9 @@ public class Tier0Test {
 			int[][] winText = orderByColumns(startingC, order);
 			double acurracy = getPermutationAccuracy(winText);
 			
+			if (acurracy >= maxAccuracy) {
+				maxAccuracy = acurracy;
+			}
 			finalOrders.add(order);
 			
 			if(bestScore > score){
@@ -275,8 +312,6 @@ public class Tier0Test {
 		int[][] finalText = orderByColumns(startingC, bestOrder);
 		double accuracy = getPermutationAccuracy(finalText);
 		printMatrix("\nText Result: ", finalText, true);
-		
-		
 	}
 	
 	/*
@@ -620,4 +655,22 @@ public class Tier0Test {
          return Math.sqrt(sum);
     }
 	
+ 	/*
+ 	 * sort the row vector
+ 	 */
+ 	private double[][] sortForRowDescending(double[][] src) {
+ 		int height = src.length;
+ 		int width = src[0].length;
+ 		Double[][] tmp = new Double[height][width];
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) tmp[i][j] = src[i][j];
+			Arrays.sort(tmp[i], Collections.reverseOrder());
+		}
+		double[][] dst = new double[height][width];
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) dst[i][j] = tmp[i][j];
+		}
+		
+		return dst;
+ 	}
 }
