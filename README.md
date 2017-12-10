@@ -22,9 +22,9 @@ which ends the run.
 The scoring formula is calculated from a choice of 2 methods:
 1. by summing the absolute value of the differences
 taken from each corresponding pair of indices of the 2 digraphs.
-2. Training a PCA model from the digraph of the brown corpus, then
-the digraph generated from each column-permutation is acored against
-that model.
+2. A PCA model is trained at the beginning from the digraph of 
+the brown corpus, then the digraph generated from each column-
+permutation is scored against that model.
 
 In each case, the lowest score at the end of the run is determined
 to be the best candidate. If running this algorithm with random restarts,
