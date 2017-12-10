@@ -33,3 +33,7 @@ The best score and order persists across restarts.
 The output vectors of these tests will be examined in an attempt to find
 a solution to the column-swapping problem for the z408 cipher and, by 
 extension, the z340 cipher.
+
+Note: The project was started in Eclipse and converted to a Maven project
+in order to import the SMILE library. Refer to the documentation for adding
+that dependency here: https://github.com/haifengl/smile
