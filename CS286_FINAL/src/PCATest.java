@@ -224,19 +224,18 @@ public class PCATest {
 				double[] dPrime = generateDigraphVector(cPrime);
 
 				double[] projectedC = null;
-        		if (usePCAWithRanking) {
-            		double[] sortedDPrime = sortForRowDescending1D(dPrime);
-            		projectedC = pca.project(sortedDPrime);
-        		} else {
-        			projectedC = pca.project(dPrime);
-        		}
-        		
-			double minDist = Double.MAX_VALUE;
-			for (int row = 0; row < projectedC.length; row++) {
-				minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC));
-			}
-			scorePrime = minDist;
-				
+	        		if (usePCAWithRanking) {
+	            		double[] sortedDPrime = sortForRowDescending1D(dPrime);
+	            		projectedC = pca.project(sortedDPrime);
+	        		} else {
+	        			projectedC = pca.project(dPrime);
+	        		}
+	        		
+				double minDist = Double.MAX_VALUE;
+				for (int row = 0; row < projectedC.length; row++) {
+					minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC));
+				}
+				scorePrime = minDist;
 				
 				if(scorePrime < score){
 					score = scorePrime;
