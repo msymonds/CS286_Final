@@ -232,7 +232,7 @@ public class PCATest {
 	        		}
 	        		
 				double minDist = Double.MAX_VALUE;
-				for (int row = 0; row < projectedC.length; row++) {
+				for (int row = 0; row < scoreMatrix.length; row++) {
 					minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC));
 				}
 				scorePrime = minDist;
