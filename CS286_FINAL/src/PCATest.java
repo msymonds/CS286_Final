@@ -16,6 +16,7 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -27,6 +28,7 @@ public class PCATest {
 	static boolean debug = false; // toggle to get/hide additional output/status messages
 	static boolean usePCA = true; // always keep this on true, will break otherwise
 	static boolean usePCAWithRanking = false;
+	static boolean useRankedDigraph = false;
   	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -64,6 +66,18 @@ public class PCATest {
 	// digraph-vector based on plain408 text
 	double[] z408PlainDigraphVector;
 	
+	List<Integer[]> rankedDigraphPair;
+	
+	private class DigraphProb {
+		public int i;
+		public int j;
+		public double prob;
+		public DigraphProb(int i, int j, double prob) {
+			this.i = i;
+			this.j = j;
+			this.prob = prob;
+		}
+	}
 	
 	public void runTest(){
 		// initialize results file for printing results
@@ -71,6 +85,9 @@ public class PCATest {
 		
 		englishDigraph = generatePCADigraph();
 		z408PlainDigraphVector = generateDigraphVector(z408Plain);
+		
+		double[][] brownDigraph = generateDigraph();
+		rankedDigraphPair = rankDigraph(brownDigraph);
 		
 		// initial column permutation per data given by Stamp
 		int[] startingOrder = {11,15,8,4,12,3,9,10,5,13,1,2,0,7,6,14,16};
@@ -154,7 +171,14 @@ public class PCATest {
 		ArrayList<int[]> finalOrders = new ArrayList<int[]>();
 		finalOrders.add(order);
 		
-		double score = Double.MAX_VALUE;
+		double[] initialProjectedC = null;		
+		if (usePCAWithRanking) {
+	    		double[] sortedDPrime = sortForRowDescending1D(D);
+	    		initialProjectedC = pca.project(sortedDPrime);
+		} else {
+			initialProjectedC = pca.project(D);
+		}
+		double score = scorePCA(scoreMatrix, initialProjectedC);
 		double scorePrime = 0;
 		double bestScore = score;
 		
@@ -231,11 +255,7 @@ public class PCATest {
 	        			projectedC = pca.project(dPrime);
 	        		}
 	        		
-				double minDist = Double.MAX_VALUE;
-				for (int row = 0; row < scoreMatrix.length; row++) {
-					minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC));
-				}
-				scorePrime = minDist;
+                scorePrime = scorePCA(scoreMatrix, projectedC);
 				
 				if(scorePrime < score){
 					score = scorePrime;
@@ -638,15 +658,26 @@ public class PCATest {
 				dGraph[i][j] = dGraph[i][j]/rowSum;
 			}
 		}
-		int dVecSize = (dGraphSize * dGraphSize);
-		double[] result = new double[dVecSize];
-		int dCounter = 0;
-		for(int j = 0; j < dGraph.length; j++){
-			for(int k = 0; k < dGraph[j].length; k++){
-				result[dCounter++] = dGraph[j][k];
-			}
+		
+		double[] result = null;
+		if (useRankedDigraph) {
+			int dVecSize = (dGraphSize * dGraphSize);
+			result = new double[dVecSize];
+			int dCounter = 0;
+			for(int j = 0; j < dGraph.length; j++){
+				for(int k = 0; k < dGraph[j].length; k++){
+					result[dCounter++] = dGraph[j][k];
+				}
+			}	
+		} else {
+			int dVecSize = rankedDigraphPair.size();
+			result = new double[dVecSize];
+			for (int i = 0; i < rankedDigraphPair.size(); i++) {
+				Integer[] pair = rankedDigraphPair.get(i);
+				result[i] = dGraph[pair[0]][pair[1]];
+			}	
 		}
-	
+		
 		return result;
 	}
 
@@ -666,6 +697,15 @@ public class PCATest {
 		}
 		return result;
 	}
+	
+	private double scorePCA(double[][] scoringMatrix, double[] y) {
+		double minDist = Double.MAX_VALUE;
+		for (int row = 0; row < scoringMatrix.length; row++) {
+			minDist = Math.min(minDist, getL2Distance(scoringMatrix[row], y));
+		}	
+		return minDist;
+	}
+	
 	
 	/*
 	 * swaps the columns of the given matrix of cipher
@@ -793,4 +833,33 @@ public class PCATest {
 		for (int i = 0; i < src.length; i++) dst[i] = tmp[i];
 		return dst;
  	}
+ 	
+ 	private List<Integer[]> rankDigraph(double[][] digraph) {
+		int dGraphSize = 26;
+		List<DigraphProb> digraphObjList = new ArrayList<>();
+		for (int i = 0; i < dGraphSize; i++) {
+			for (int j = 0; j < dGraphSize; j++) {
+				digraphObjList.add(new DigraphProb(i, j, digraph[i][j]));
+			}
+		}
+		
+		Collections.sort(digraphObjList, new Comparator<DigraphProb>() {
+			@Override
+			public int compare(DigraphProb o1, DigraphProb o2) {
+				if (o2.prob > o1.prob) return 1;
+				else if (o2.prob < o1.prob) return -1;
+				else return 0;
+			}
+		});
+		
+		List<Integer[]> sortedDigraph = new ArrayList<>();
+		int nSelectedProbs = 100;
+		for (int k = 0; k < nSelectedProbs; k++) {
+			Integer[] pair = new Integer[2];
+			pair[0] = digraphObjList.get(k).i;
+			pair[1] = digraphObjList.get(k).j;
+			sortedDigraph.add(pair);
+		}
+		return sortedDigraph;
+	}
 }
