@@ -8,6 +8,9 @@
  * distance formula
  */
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -77,8 +80,21 @@ public class PCATest {
 		
 		printMatrix("Original z408 plain-Text", z408Plain, true);
 		
-		executeJakobsenAlgorithm(englishDigraph, z408Permuted);
-		
+		File f = new File("results_pca.txt");
+		try {
+			FileWriter writer = new FileWriter(f, false);
+			writer.write("");
+			for (int i = 1; i < 26 * 26 / 2; i++) {
+				int nEigvalues = i;
+				double accuracy = executeJakobsenAlgorithm(englishDigraph, z408Permuted, nEigvalues);
+				String message = "#eigvalues: " + nEigvalues + " accuracy: " + String.format("%.3f", accuracy);
+				writer.write(message + System.getProperty( "line.separator" ));
+			}
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	/*
@@ -91,7 +107,7 @@ public class PCATest {
 	 * after a swap and then scored.
 	 * See 9.4.1 (p245 in the book) for details of original version.
 	 */
-	private void executeJakobsenAlgorithm(double[][] E, int[][] C){
+	private double executeJakobsenAlgorithm(double[][] E, int[][] C, int nEigvalues){
 		int RANDOM_RESTARTS = 100;
 		
 		// preserve the original order of C for
@@ -119,12 +135,11 @@ public class PCATest {
 		// From SMILE library. Documentation found here:
 		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
 		
-		int nEigvalues = 1;
 		PCA pca = new PCA(E);
 		pca = pca.setProjection(nEigvalues);		
 		double[][] scoreMatrix = pca.project(E); // 26 x n_eig
 		if (usePCAWithRanking) { // overwrite PCA object for simplicity
-			double[][] sortedE = sortForRowDescending(E);	
+			double[][] sortedE = sortForRowDescending2D(E);	
 			pca = new PCA(sortedE);
 			pca = pca.setProjection(nEigvalues);
 			scoreMatrix = pca.project(sortedE); // 26 x n_eig
@@ -138,7 +153,6 @@ public class PCATest {
 		// we've already used
 		ArrayList<int[]> finalOrders = new ArrayList<int[]>();
 		finalOrders.add(order);
-		
 		
 		double score = Double.MAX_VALUE;
 		double scorePrime = 0;
@@ -210,34 +224,18 @@ public class PCATest {
 				double[] dPrime = generateDigraphVector(cPrime);
 
 				double[] projectedC = null;
-        		if (usePCAWithRanking) {
-//        			List<Double[]> selectedRow = new ArrayList<>();
-//            		for (int row = 0; row < dPrime.length; row++) {
-//            			// remove the case with uniform distribution
-//            			if (Math.abs((dPrime[row][0] - 0.0385)) < 10e-4) {
-//            				Double[] r = new Double[dPrime[0].length];
-//							for (int col = 0; col < dPrime[0].length; col++)
-//								r[col] = dPrime[row][col];
-//							selectedRow.add(r);
-//						}
-//            		}
-//            		double[][] selectedDPrime = new double[selectedRow.size()][dPrime[0].length];
-//            		for (int row = 0; row < selectedRow.size(); row++) {
-//            			for (int col = 0; col < dPrime[0].length; col++)
-//            				selectedDPrime[row][col] = selectedRow.get(row)[col];
-//            		}
-//            		double[][] sortedDPrime = sortForRowDescending(selectedDPrime);
-//            		projectedC = pca.project(sortedDPrime);
-        		} else {
-        			projectedC = pca.project(dPrime);
-        		}
-        		
-			double minDist = Double.MAX_VALUE;
-//			for (int row = 0; row < projectedC.length; row++) {
-//				minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC[row]));
-//			}
-			scorePrime = minDist;
-				
+	        		if (usePCAWithRanking) {
+	            		double[] sortedDPrime = sortForRowDescending1D(dPrime);
+	            		projectedC = pca.project(sortedDPrime);
+	        		} else {
+	        			projectedC = pca.project(dPrime);
+	        		}
+	        		
+				double minDist = Double.MAX_VALUE;
+				for (int row = 0; row < projectedC.length; row++) {
+					minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC));
+				}
+				scorePrime = minDist;
 				
 				if(scorePrime < score){
 					score = scorePrime;
@@ -255,9 +253,8 @@ public class PCATest {
 						//System.out.println(a);
 					}
 				}
-				
 			}
-			System.out.println("Epoch " + (epoch + 1) + " complete.");
+			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy));
 			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
 			TextParse.appendToFile("Winning score: " + score);
 			TextParse.appendToFile("Winning order: ");
@@ -287,6 +284,7 @@ public class PCATest {
 		TextParse.appendToFile("\nJakobsen's algorithm completed");
 		TextParse.appendToFile("Winning score: " + bestScore);
 		TextParse.appendToFile("Winning order: ");
+		TextParse.appendToFile("Best accuracy: " + maxAccuracy);
 		text = "";
 		for(int i = 0; i < bestOrder.length; i++){
 			text += (bestOrder[i] + (i < (bestOrder.length-1) ? ", ":"\n"));
@@ -296,6 +294,7 @@ public class PCATest {
 		int[][] finalText = orderByColumns(startingC, bestOrder);
 		double accuracy = getPermutationAccuracy(finalText);
 		printMatrix("\nText Result: ", finalText, true);
+		return maxAccuracy;
 	}
 	
 	/*
@@ -775,19 +774,23 @@ public class PCATest {
  	/*
  	 * sort the row vector
  	 */
- 	private double[][] sortForRowDescending(double[][] src) {
+ 	private double[][] sortForRowDescending2D(double[][] src) {
  		int height = src.length;
  		int width = src[0].length;
- 		Double[][] tmp = new Double[height][width];
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) tmp[i][j] = src[i][j];
-			Arrays.sort(tmp[i], Collections.reverseOrder());
-		}
 		double[][] dst = new double[height][width];
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) dst[i][j] = tmp[i][j];
-		}
+		for (int i = 0; i < height; i++)
+			dst[i] = sortForRowDescending1D(dst[i]);
 		
+		return dst;
+ 	}
+ 	
+ 	private double[] sortForRowDescending1D(double[] src) {
+ 		Double[] tmp = new Double[src.length];
+ 		for (int i = 0; i < src.length; i++) tmp[i] = src[i];
+ 		Arrays.sort(tmp, Collections.reverseOrder());
+ 		
+ 		double[] dst = new double[src.length];
+		for (int i = 0; i < src.length; i++) dst[i] = tmp[i];
 		return dst;
  	}
 }
