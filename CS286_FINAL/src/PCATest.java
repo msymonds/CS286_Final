@@ -124,7 +124,7 @@ public class PCATest {
 		pca = pca.setProjection(nEigvalues);		
 		double[][] scoreMatrix = pca.project(E); // 26 x n_eig
 		if (usePCAWithRanking) { // overwrite PCA object for simplicity
-			double[][] sortedE = sortForRowDescending(E);	
+			double[][] sortedE = sortForRowDescending2D(E);	
 			pca = new PCA(sortedE);
 			pca = pca.setProjection(nEigvalues);
 			scoreMatrix = pca.project(sortedE); // 26 x n_eig
@@ -138,7 +138,6 @@ public class PCATest {
 		// we've already used
 		ArrayList<int[]> finalOrders = new ArrayList<int[]>();
 		finalOrders.add(order);
-		
 		
 		double score = Double.MAX_VALUE;
 		double scorePrime = 0;
@@ -211,31 +210,16 @@ public class PCATest {
 
 				double[] projectedC = null;
         		if (usePCAWithRanking) {
-//        			List<Double[]> selectedRow = new ArrayList<>();
-//            		for (int row = 0; row < dPrime.length; row++) {
-//            			// remove the case with uniform distribution
-//            			if (Math.abs((dPrime[row][0] - 0.0385)) < 10e-4) {
-//            				Double[] r = new Double[dPrime[0].length];
-//							for (int col = 0; col < dPrime[0].length; col++)
-//								r[col] = dPrime[row][col];
-//							selectedRow.add(r);
-//						}
-//            		}
-//            		double[][] selectedDPrime = new double[selectedRow.size()][dPrime[0].length];
-//            		for (int row = 0; row < selectedRow.size(); row++) {
-//            			for (int col = 0; col < dPrime[0].length; col++)
-//            				selectedDPrime[row][col] = selectedRow.get(row)[col];
-//            		}
-//            		double[][] sortedDPrime = sortForRowDescending(selectedDPrime);
-//            		projectedC = pca.project(sortedDPrime);
+            		double[] sortedDPrime = sortForRowDescending1D(dPrime);
+            		projectedC = pca.project(sortedDPrime);
         		} else {
         			projectedC = pca.project(dPrime);
         		}
         		
 			double minDist = Double.MAX_VALUE;
-//			for (int row = 0; row < projectedC.length; row++) {
-//				minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC[row]));
-//			}
+			for (int row = 0; row < projectedC.length; row++) {
+				minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC));
+			}
 			scorePrime = minDist;
 				
 				
@@ -775,19 +759,23 @@ public class PCATest {
  	/*
  	 * sort the row vector
  	 */
- 	private double[][] sortForRowDescending(double[][] src) {
+ 	private double[][] sortForRowDescending2D(double[][] src) {
  		int height = src.length;
  		int width = src[0].length;
- 		Double[][] tmp = new Double[height][width];
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) tmp[i][j] = src[i][j];
-			Arrays.sort(tmp[i], Collections.reverseOrder());
-		}
 		double[][] dst = new double[height][width];
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) dst[i][j] = tmp[i][j];
-		}
+		for (int i = 0; i < height; i++)
+			dst[i] = sortForRowDescending1D(dst[i]);
 		
+		return dst;
+ 	}
+ 	
+ 	private double[] sortForRowDescending1D(double[] src) {
+ 		Double[] tmp = new Double[src.length];
+ 		for (int i = 0; i < src.length; i++) tmp[i] = src[i];
+ 		Arrays.sort(tmp, Collections.reverseOrder());
+ 		
+ 		double[] dst = new double[src.length];
+		for (int i = 0; i < src.length; i++) dst[i] = tmp[i];
 		return dst;
  	}
 }
