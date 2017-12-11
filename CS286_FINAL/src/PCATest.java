@@ -8,6 +8,9 @@
  * distance formula
  */
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -77,8 +80,21 @@ public class PCATest {
 		
 		printMatrix("Original z408 plain-Text", z408Plain, true);
 		
-		executeJakobsenAlgorithm(englishDigraph, z408Permuted);
-		
+		File f = new File("results_pca.txt");
+		try {
+			FileWriter writer = new FileWriter(f, false);
+			writer.write("");
+			for (int i = 1; i < 26 * 26 / 2; i++) {
+				int nEigvalues = i;
+				double accuracy = executeJakobsenAlgorithm(englishDigraph, z408Permuted, nEigvalues);
+				String message = "#eigvalues: " + nEigvalues + " accuracy: " + String.format("%.3f", accuracy);
+				writer.write(message + System.getProperty( "line.separator" ));
+			}
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	/*
@@ -91,7 +107,7 @@ public class PCATest {
 	 * after a swap and then scored.
 	 * See 9.4.1 (p245 in the book) for details of original version.
 	 */
-	private void executeJakobsenAlgorithm(double[][] E, int[][] C){
+	private double executeJakobsenAlgorithm(double[][] E, int[][] C, int nEigvalues){
 		int RANDOM_RESTARTS = 100;
 		
 		// preserve the original order of C for
@@ -119,7 +135,6 @@ public class PCATest {
 		// From SMILE library. Documentation found here:
 		// https://haifengl.github.io/smile/api/java/smile/projection/PCA.html
 		
-		int nEigvalues = 1;
 		PCA pca = new PCA(E);
 		pca = pca.setProjection(nEigvalues);		
 		double[][] scoreMatrix = pca.project(E); // 26 x n_eig
@@ -239,7 +254,6 @@ public class PCATest {
 						//System.out.println(a);
 					}
 				}
-				
 			}
 			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy));
 			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
@@ -281,6 +295,7 @@ public class PCATest {
 		int[][] finalText = orderByColumns(startingC, bestOrder);
 		double accuracy = getPermutationAccuracy(finalText);
 		printMatrix("\nText Result: ", finalText, true);
+		return maxAccuracy;
 	}
 	
 	/*
