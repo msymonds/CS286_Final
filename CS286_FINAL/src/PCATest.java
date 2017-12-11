@@ -170,7 +170,14 @@ public class PCATest {
 		ArrayList<int[]> finalOrders = new ArrayList<int[]>();
 		finalOrders.add(order);
 		
-		double score = Double.MAX_VALUE;
+		double[] initialProjectedC = null;		
+		if (usePCAWithRanking) {
+	    		double[] sortedDPrime = sortForRowDescending1D(D);
+	    		initialProjectedC = pca.project(sortedDPrime);
+		} else {
+			initialProjectedC = pca.project(D);
+		}
+		double score = scorePCA(scoreMatrix, initialProjectedC);
 		double scorePrime = 0;
 		double bestScore = score;
 		
@@ -247,11 +254,7 @@ public class PCATest {
 	        			projectedC = pca.project(dPrime);
 	        		}
 	        		
-				double minDist = Double.MAX_VALUE;
-				for (int row = 0; row < scoreMatrix.length; row++) {
-					minDist = Math.min(minDist, getL2Distance(scoreMatrix[row], projectedC));
-				}
-				scorePrime = minDist;
+                scorePrime = scorePCA(scoreMatrix, projectedC);
 				
 				if(scorePrime < score){
 					score = scorePrime;
@@ -682,6 +685,15 @@ public class PCATest {
 		}
 		return result;
 	}
+	
+	private double scorePCA(double[][] scoringMatrix, double[] y) {
+		double minDist = Double.MAX_VALUE;
+		for (int row = 0; row < scoringMatrix.length; row++) {
+			minDist = Math.min(minDist, getL2Distance(scoringMatrix[row], y));
+		}	
+		return minDist;
+	}
+	
 	
 	/*
 	 * swaps the columns of the given matrix of cipher
