@@ -28,6 +28,7 @@ public class PCATest {
 	static boolean debug = false; // toggle to get/hide additional output/status messages
 	static boolean usePCA = true; // always keep this on true, will break otherwise
 	static boolean usePCAWithRanking = false;
+	static boolean useRankedDigraph = false;
   	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -657,15 +658,26 @@ public class PCATest {
 				dGraph[i][j] = dGraph[i][j]/rowSum;
 			}
 		}
-		int dVecSize = (dGraphSize * dGraphSize);
-		double[] result = new double[dVecSize];
-		int dCounter = 0;
-		for(int j = 0; j < dGraph.length; j++){
-			for(int k = 0; k < dGraph[j].length; k++){
-				result[dCounter++] = dGraph[j][k];
-			}
+		
+		double[] result = null;
+		if (useRankedDigraph) {
+			int dVecSize = (dGraphSize * dGraphSize);
+			result = new double[dVecSize];
+			int dCounter = 0;
+			for(int j = 0; j < dGraph.length; j++){
+				for(int k = 0; k < dGraph[j].length; k++){
+					result[dCounter++] = dGraph[j][k];
+				}
+			}	
+		} else {
+			int dVecSize = rankedDigraphPair.size();
+			result = new double[dVecSize];
+			for (int i = 0; i < rankedDigraphPair.size(); i++) {
+				Integer[] pair = rankedDigraphPair.get(i);
+				result[i] = dGraph[pair[0]][pair[1]];
+			}	
 		}
-	
+		
 		return result;
 	}
 
