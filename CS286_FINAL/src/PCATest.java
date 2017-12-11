@@ -241,7 +241,7 @@ public class PCATest {
 				}
 				
 			}
-			System.out.println("Epoch " + (epoch + 1) + " complete.");
+			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy));
 			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
 			TextParse.appendToFile("Winning score: " + score);
 			TextParse.appendToFile("Winning order: ");
@@ -271,6 +271,7 @@ public class PCATest {
 		TextParse.appendToFile("\nJakobsen's algorithm completed");
 		TextParse.appendToFile("Winning score: " + bestScore);
 		TextParse.appendToFile("Winning order: ");
+		TextParse.appendToFile("Best accuracy: " + maxAccuracy);
 		text = "";
 		for(int i = 0; i < bestOrder.length; i++){
 			text += (bestOrder[i] + (i < (bestOrder.length-1) ? ", ":"\n"));
