@@ -21,8 +21,17 @@ public class Driver {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 
+		// this test uses naive distance
+		// measurement to score digraphs
+		// uncomment to run
 		Tier0Test t0 = new Tier0Test();
-		t0.runTest();
+		//t0.runTest();
+		
+		// this test uses PCA scoring
+		// uncomment to run
+		//
+		PCATest pcaT = new PCATest();
+		pcaT.runTest();
 	}
 
 }
