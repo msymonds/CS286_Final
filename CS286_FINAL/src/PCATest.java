@@ -28,7 +28,7 @@ public class PCATest {
 	static boolean debug = false; // toggle to get/hide additional output/status messages
 	static boolean usePCA = true; // always keep this on true, will break otherwise
 	static boolean usePCAWithRanking = false;
-	static boolean useRankedDigraph = false;
+	static boolean useRankedDigraph = true;
   	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -83,11 +83,10 @@ public class PCATest {
 		// initialize results file for printing results
 		TextParse.initializeResultsFile();
 		
-		englishDigraph = generatePCADigraph();
-		z408PlainDigraphVector = generateDigraphVector(z408Plain);
-		
 		double[][] brownDigraph = generateDigraph();
 		rankedDigraphPair = rankDigraph(brownDigraph);
+		englishDigraph = generatePCADigraph();
+		z408PlainDigraphVector = generateDigraphVector(z408Plain);
 		
 		// initial column permutation per data given by Stamp
 		int[] startingOrder = {11,15,8,4,12,3,9,10,5,13,1,2,0,7,6,14,16};
@@ -568,13 +567,24 @@ public class PCATest {
 					dGraph[j][k] = dGraph[j][k]/rowSum;
 				}
 			}
-			int dVecSize = (dGraphSize * dGraphSize);
-			double[] dGraphVector = new double[dVecSize];
-			int dCounter = 0;
-			for(int j = 0; j < dGraph.length; j++){
-				for(int k = 0; k < dGraph[j].length; k++){
-					dGraphVector[dCounter++] = dGraph[j][k];
-				}
+			
+			double[] dGraphVector = null;
+			if (!useRankedDigraph) {
+				int dVecSize = (dGraphSize * dGraphSize);
+				dGraphVector = new double[dVecSize];
+				int dCounter = 0;
+				for(int j = 0; j < dGraph.length; j++){
+					for(int k = 0; k < dGraph[j].length; k++){
+						dGraphVector[dCounter++] = dGraph[j][k];
+					}
+				}	
+			} else {
+				int dVecSize = rankedDigraphPair.size();
+				dGraphVector = new double[dVecSize];
+				for (int j = 0; j < rankedDigraphPair.size(); j++) {
+					Integer[] pair = rankedDigraphPair.get(j);
+					dGraphVector[j] = dGraph[pair[0]][pair[1]];
+				}	
 			}
 			
 			result[i] = dGraphVector;
@@ -660,7 +670,7 @@ public class PCATest {
 		}
 		
 		double[] result = null;
-		if (useRankedDigraph) {
+		if (!useRankedDigraph) {
 			int dVecSize = (dGraphSize * dGraphSize);
 			result = new double[dVecSize];
 			int dCounter = 0;
