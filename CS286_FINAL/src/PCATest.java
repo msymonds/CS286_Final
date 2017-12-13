@@ -28,7 +28,8 @@ public class PCATest {
 	static boolean debug = false; // toggle to get/hide additional output/status messages
 	static boolean usePCA = true; // always keep this on true, will break otherwise
 	static boolean usePCAWithRanking = false;
-	static boolean useRankedDigraph = false;
+	static boolean useRankedDigraph = true;
+	static boolean verbose = false;
   	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -83,11 +84,10 @@ public class PCATest {
 		// initialize results file for printing results
 		TextParse.initializeResultsFile();
 		
-		englishDigraph = generatePCADigraph();
-		z408PlainDigraphVector = generateDigraphVector(z408Plain);
-		
 		double[][] brownDigraph = generateDigraph();
 		rankedDigraphPair = rankDigraph(brownDigraph);
+		englishDigraph = generatePCADigraph();
+		z408PlainDigraphVector = generateDigraphVector(z408Plain);
 		
 		// initial column permutation per data given by Stamp
 		int[] startingOrder = {11,15,8,4,12,3,9,10,5,13,1,2,0,7,6,14,16};
@@ -101,7 +101,7 @@ public class PCATest {
 		try {
 			FileWriter writer = new FileWriter(f, false);
 			writer.write("");
-			for (int i = 1; i < 26 * 26 / 2; i++) {
+			for (int i = 32; i < 33; i++) {
 				int nEigvalues = i;
 				double accuracy = executeJakobsenAlgorithm(englishDigraph, z408Permuted, nEigvalues);
 				String message = "#eigvalues: " + nEigvalues + " accuracy: " + String.format("%.3f", accuracy);
@@ -139,10 +139,12 @@ public class PCATest {
 		// plus working and final copies
 		int[] order = new int[C[0].length];
 		int[] bestOrder = new int[order.length];
+		int[] bestOrderForAccuracy = new int[order.length];
 		int[] testOrder = new int[order.length];
 		for(int i = 0; i < order.length; i++){
 			order[i] = i;
 			bestOrder[i] = i;
+			bestOrderForAccuracy[i] = i;
 			testOrder[i] = i;
 		}
 		
@@ -182,14 +184,16 @@ public class PCATest {
 		double scorePrime = 0;
 		double bestScore = score;
 		
-		printMatrix("\nStarting text: ", C, true);
-		//TextParse.appendToFile("Starting score: " + score);
-		TextParse.appendToFile("Starting order: ");
 		String text = "";
-		for(int i = 0; i < order.length; i++){
-			text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+		if (verbose) {
+			printMatrix("\nStarting text: ", C, true);
+			//TextParse.appendToFile("Starting score: " + score);
+			TextParse.appendToFile("Starting order: ");
+			for(int i = 0; i < order.length; i++){
+				text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+			}
+			TextParse.appendToFile(text);			
 		}
-		TextParse.appendToFile(text);
 		
 		double maxAccuracy = 0.0;
 		for(int epoch = 0; epoch < RANDOM_RESTARTS; epoch++){
@@ -200,13 +204,11 @@ public class PCATest {
 			// at the "top" of the hill for
 			// 
 			if(epoch > 0){
-				TextParse.appendToFile("generating random order...");
-//				do{
-//					order = getPermutation(startingC[0].length);
-//				} while (!orderNotTried(order, finalOrders));
-//				
+				if (verbose) {
+					TextParse.appendToFile("generating random order...");	
+				}
+				
 				order = getPermutation(startingC[0].length);
-				TextParse.appendToFile("done!\n");
 				finalOrders.add(order);
 				C = orderByColumns(startingC, order);
 				for(int i = 0; i < order.length; i++){
@@ -215,16 +217,26 @@ public class PCATest {
 				
 				// score the intial random order
 				D = generateDigraphVector(C);
-				//score = scoreDigraphs(E, D);
+				double[] projectedC = null;
+	        		if (usePCAWithRanking) {
+	            		double[] sortedDPrime = sortForRowDescending1D(D);
+	            		projectedC = pca.project(sortedDPrime);
+	        		} else {
+	        			projectedC = pca.project(D);
+	        		}
+	        		
+	            score = scorePCA(scoreMatrix, projectedC);
 				
 				//printMatrix("\nStarting epoch text: ", C, true);
-				TextParse.appendToFile("Starting epoch score: " + score);
-				TextParse.appendToFile("Starting epoch order: ");
-				text = "";
-				for(int i = 0; i < order.length; i++){
-					text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
-				}
-				TextParse.appendToFile(text);
+	            if (verbose) {
+	            		TextParse.appendToFile("Starting epoch score: " + score);
+					TextParse.appendToFile("Starting epoch order: ");
+					text = "";
+					for(int i = 0; i < order.length; i++){
+						text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+					}
+					TextParse.appendToFile(text);
+	            }
 				
 			} // end epoch setup
 			
@@ -274,20 +286,36 @@ public class PCATest {
 					}
 				}
 			}
-			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy));
-			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
-			TextParse.appendToFile("Winning score: " + score);
-			TextParse.appendToFile("Winning order: ");
-			text = "";
-			for(int i = 0; i < order.length; i++){
-				text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+
+			if (verbose) {
+				TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
+				TextParse.appendToFile("Winning score: " + score);
+				TextParse.appendToFile("Winning order: ");
+				text = "";
+				for(int i = 0; i < order.length; i++){
+					text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+				}
+				TextParse.appendToFile(text);	
 			}
-			TextParse.appendToFile(text);
+			
 			int[][] winText = orderByColumns(startingC, order);
 			double acurracy = getPermutationAccuracy(winText);
 			
+			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy) + " " + String.format("%.3f", score));
+			File f = new File("results_acc_score.txt");
+			try {
+				FileWriter writer = new FileWriter(f, true);
+				String msg = String.format("%.4f", acurracy) + " " + String.format("%.4f", score);
+				writer.write(msg + System.getProperty( "line.separator" ));
+				writer.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
 			if (acurracy >= maxAccuracy) {
 				maxAccuracy = acurracy;
+				bestOrderForAccuracy = order.clone();
 			}
 			finalOrders.add(order);
 			
@@ -297,6 +325,7 @@ public class PCATest {
 					bestOrder[i] = order[i];
 				}
 			}
+			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy) + " " + String.format("%.3f", score));
 		}
 		
 		
@@ -314,6 +343,11 @@ public class PCATest {
 		int[][] finalText = orderByColumns(startingC, bestOrder);
 		double accuracy = getPermutationAccuracy(finalText);
 		printMatrix("\nText Result: ", finalText, true);
+		
+		int[][] finalTextForAccuracy = orderByColumns(startingC, bestOrderForAccuracy);
+		printMatrix("\nText Result For Accuracy: ", finalTextForAccuracy, true);
+		printPlainWithAscii("\nText Result For Accuracy: ", finalTextForAccuracy, true);
+		
 		return maxAccuracy;
 	}
 	
@@ -339,8 +373,9 @@ public class PCATest {
 				correct++;
 		}
 		result = (double)(correct)/(double)solution.length;
-		TextParse.appendToFile("Permutation accuracy: " + correct + "/" + solution.length + " = " +
-				formatter.format(result));
+		if (verbose)
+			TextParse.appendToFile("Permutation accuracy: " + correct + "/" + solution.length + " = " +
+					formatter.format(result));
 		return result;
 	}
 	
@@ -568,13 +603,24 @@ public class PCATest {
 					dGraph[j][k] = dGraph[j][k]/rowSum;
 				}
 			}
-			int dVecSize = (dGraphSize * dGraphSize);
-			double[] dGraphVector = new double[dVecSize];
-			int dCounter = 0;
-			for(int j = 0; j < dGraph.length; j++){
-				for(int k = 0; k < dGraph[j].length; k++){
-					dGraphVector[dCounter++] = dGraph[j][k];
-				}
+			
+			double[] dGraphVector = null;
+			if (!useRankedDigraph) {
+				int dVecSize = (dGraphSize * dGraphSize);
+				dGraphVector = new double[dVecSize];
+				int dCounter = 0;
+				for(int j = 0; j < dGraph.length; j++){
+					for(int k = 0; k < dGraph[j].length; k++){
+						dGraphVector[dCounter++] = dGraph[j][k];
+					}
+				}	
+			} else {
+				int dVecSize = rankedDigraphPair.size();
+				dGraphVector = new double[dVecSize];
+				for (int j = 0; j < rankedDigraphPair.size(); j++) {
+					Integer[] pair = rankedDigraphPair.get(j);
+					dGraphVector[j] = dGraph[pair[0]][pair[1]];
+				}	
 			}
 			
 			result[i] = dGraphVector;
@@ -660,7 +706,7 @@ public class PCATest {
 		}
 		
 		double[] result = null;
-		if (useRankedDigraph) {
+		if (!useRankedDigraph) {
 			int dVecSize = (dGraphSize * dGraphSize);
 			result = new double[dVecSize];
 			int dCounter = 0;
@@ -797,6 +843,20 @@ public class PCATest {
 			//System.out.println(line);
 			if(toFile)
 				TextParse.appendToFile(line);
+		}
+	}
+	
+	private void printPlainWithAscii(String s, int[][] m, boolean toFile) {
+		if (toFile) {
+			TextParse.appendToFile(s);
+			for (int i = 0; i < m.length; i++) {
+				StringBuilder sb = new StringBuilder();
+				for (int j = 0; j < m[i].length; j++) {
+					char letter[] = Character.toChars(m[i][j] + (int)('A'));
+					sb.append(String.valueOf(letter[0]) + " ");
+				}
+				TextParse.appendToFile(sb.toString());
+			}	
 		}
 	}
 	
