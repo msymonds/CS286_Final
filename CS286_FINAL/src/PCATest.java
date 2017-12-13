@@ -29,6 +29,7 @@ public class PCATest {
 	static boolean usePCA = true; // always keep this on true, will break otherwise
 	static boolean usePCAWithRanking = false;
 	static boolean useRankedDigraph = true;
+	static boolean verbose = false;
   	static NumberFormat formatter = new DecimalFormat("#0.0000"); 
 
 	//Z408 plaintext (0 thru 25, correct column order)
@@ -183,14 +184,16 @@ public class PCATest {
 		double scorePrime = 0;
 		double bestScore = score;
 		
-		printMatrix("\nStarting text: ", C, true);
-		//TextParse.appendToFile("Starting score: " + score);
-		TextParse.appendToFile("Starting order: ");
 		String text = "";
-		for(int i = 0; i < order.length; i++){
-			text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+		if (verbose) {
+			printMatrix("\nStarting text: ", C, true);
+			//TextParse.appendToFile("Starting score: " + score);
+			TextParse.appendToFile("Starting order: ");
+			for(int i = 0; i < order.length; i++){
+				text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+			}
+			TextParse.appendToFile(text);			
 		}
-		TextParse.appendToFile(text);
 		
 		double maxAccuracy = 0.0;
 		for(int epoch = 0; epoch < RANDOM_RESTARTS; epoch++){
@@ -201,13 +204,11 @@ public class PCATest {
 			// at the "top" of the hill for
 			// 
 			if(epoch > 0){
-				TextParse.appendToFile("generating random order...");
-//				do{
-//					order = getPermutation(startingC[0].length);
-//				} while (!orderNotTried(order, finalOrders));
-//				
+				if (verbose) {
+					TextParse.appendToFile("generating random order...");	
+				}
+				
 				order = getPermutation(startingC[0].length);
-				TextParse.appendToFile("done!\n");
 				finalOrders.add(order);
 				C = orderByColumns(startingC, order);
 				for(int i = 0; i < order.length; i++){
@@ -227,13 +228,15 @@ public class PCATest {
 	            score = scorePCA(scoreMatrix, projectedC);
 				
 				//printMatrix("\nStarting epoch text: ", C, true);
-				TextParse.appendToFile("Starting epoch score: " + score);
-				TextParse.appendToFile("Starting epoch order: ");
-				text = "";
-				for(int i = 0; i < order.length; i++){
-					text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
-				}
-				TextParse.appendToFile(text);
+	            if (verbose) {
+	            		TextParse.appendToFile("Starting epoch score: " + score);
+					TextParse.appendToFile("Starting epoch order: ");
+					text = "";
+					for(int i = 0; i < order.length; i++){
+						text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+					}
+					TextParse.appendToFile(text);
+	            }
 				
 			} // end epoch setup
 			
@@ -284,16 +287,31 @@ public class PCATest {
 				}
 			}
 
-			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
-			TextParse.appendToFile("Winning score: " + score);
-			TextParse.appendToFile("Winning order: ");
-			text = "";
-			for(int i = 0; i < order.length; i++){
-				text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+			if (verbose) {
+				TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
+				TextParse.appendToFile("Winning score: " + score);
+				TextParse.appendToFile("Winning order: ");
+				text = "";
+				for(int i = 0; i < order.length; i++){
+					text += (order[i] + (i < (order.length-1) ? ", ":"\n"));
+				}
+				TextParse.appendToFile(text);	
 			}
-			TextParse.appendToFile(text);
+			
 			int[][] winText = orderByColumns(startingC, order);
 			double acurracy = getPermutationAccuracy(winText);
+			
+			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy) + " " + String.format("%.3f", score));
+			File f = new File("results_acc_score.txt");
+			try {
+				FileWriter writer = new FileWriter(f, true);
+				String msg = String.format("%.4f", acurracy) + " " + String.format("%.4f", score);
+				writer.write(msg + System.getProperty( "line.separator" ));
+				writer.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			
 			if (acurracy >= maxAccuracy) {
 				maxAccuracy = acurracy;
@@ -355,8 +373,9 @@ public class PCATest {
 				correct++;
 		}
 		result = (double)(correct)/(double)solution.length;
-		TextParse.appendToFile("Permutation accuracy: " + correct + "/" + solution.length + " = " +
-				formatter.format(result));
+		if (verbose)
+			TextParse.appendToFile("Permutation accuracy: " + correct + "/" + solution.length + " = " +
+					formatter.format(result));
 		return result;
 	}
 	
