@@ -214,7 +214,15 @@ public class PCATest {
 				
 				// score the intial random order
 				D = generateDigraphVector(C);
-				//score = scoreDigraphs(E, D);
+				double[] projectedC = null;
+	        		if (usePCAWithRanking) {
+	            		double[] sortedDPrime = sortForRowDescending1D(D);
+	            		projectedC = pca.project(sortedDPrime);
+	        		} else {
+	        			projectedC = pca.project(D);
+	        		}
+	        		
+	            score = scorePCA(scoreMatrix, projectedC);
 				
 				//printMatrix("\nStarting epoch text: ", C, true);
 				TextParse.appendToFile("Starting epoch score: " + score);
@@ -273,7 +281,7 @@ public class PCATest {
 					}
 				}
 			}
-			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy));
+			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy) + " " + String.format("%.3f", score));
 			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
 			TextParse.appendToFile("Winning score: " + score);
 			TextParse.appendToFile("Winning order: ");
