@@ -138,10 +138,12 @@ public class PCATest {
 		// plus working and final copies
 		int[] order = new int[C[0].length];
 		int[] bestOrder = new int[order.length];
+		int[] bestOrderForAccuracy = new int[order.length];
 		int[] testOrder = new int[order.length];
 		for(int i = 0; i < order.length; i++){
 			order[i] = i;
 			bestOrder[i] = i;
+			bestOrderForAccuracy[i] = i;
 			testOrder[i] = i;
 		}
 		
@@ -281,7 +283,7 @@ public class PCATest {
 					}
 				}
 			}
-			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy) + " " + String.format("%.3f", score));
+
 			TextParse.appendToFile("Epoch " + (epoch + 1) + " complete.");
 			TextParse.appendToFile("Winning score: " + score);
 			TextParse.appendToFile("Winning order: ");
@@ -295,6 +297,7 @@ public class PCATest {
 			
 			if (acurracy >= maxAccuracy) {
 				maxAccuracy = acurracy;
+				bestOrderForAccuracy = order.clone();
 			}
 			finalOrders.add(order);
 			
@@ -304,6 +307,7 @@ public class PCATest {
 					bestOrder[i] = order[i];
 				}
 			}
+			System.out.println("Epoch " + (epoch + 1) + " complete. Best accuracy: " + String.format("%.3f", maxAccuracy) + " " + String.format("%.3f", score));
 		}
 		
 		
@@ -321,6 +325,11 @@ public class PCATest {
 		int[][] finalText = orderByColumns(startingC, bestOrder);
 		double accuracy = getPermutationAccuracy(finalText);
 		printMatrix("\nText Result: ", finalText, true);
+		
+		int[][] finalTextForAccuracy = orderByColumns(startingC, bestOrderForAccuracy);
+		printMatrix("\nText Result For Accuracy: ", finalTextForAccuracy, true);
+		printPlainWithAscii("\nText Result For Accuracy: ", finalTextForAccuracy, true);
+		
 		return maxAccuracy;
 	}
 	
@@ -815,6 +824,20 @@ public class PCATest {
 			//System.out.println(line);
 			if(toFile)
 				TextParse.appendToFile(line);
+		}
+	}
+	
+	private void printPlainWithAscii(String s, int[][] m, boolean toFile) {
+		if (toFile) {
+			TextParse.appendToFile(s);
+			for (int i = 0; i < m.length; i++) {
+				StringBuilder sb = new StringBuilder();
+				for (int j = 0; j < m[i].length; j++) {
+					char letter[] = Character.toChars(m[i][j] + (int)('A'));
+					sb.append(String.valueOf(letter[0]) + " ");
+				}
+				TextParse.appendToFile(sb.toString());
+			}	
 		}
 	}
 	
