@@ -100,7 +100,7 @@ public class PCATest {
 		try {
 			FileWriter writer = new FileWriter(f, false);
 			writer.write("");
-			for (int i = 1; i < 26 * 26 / 2; i++) {
+			for (int i = 32; i < 33; i++) {
 				int nEigvalues = i;
 				double accuracy = executeJakobsenAlgorithm(englishDigraph, z408Permuted, nEigvalues);
 				String message = "#eigvalues: " + nEigvalues + " accuracy: " + String.format("%.3f", accuracy);
